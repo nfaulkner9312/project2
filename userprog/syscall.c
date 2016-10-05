@@ -56,6 +56,7 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
             halt();
             break;
         } case SYS_EXIT: {
+            //is_valid_ptr((const void *) arg[0]);
             exit(arg[0]);
             break;
         } case SYS_EXEC: {
@@ -71,6 +72,10 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
             break;
         } case SYS_CREATE: {
             is_valid_ptr((const void *) arg[0]);
+            const void* buf = pagedir_get_page(thread_current()->pagedir, (const void *)arg[0]);
+            if (buf == NULL) {
+                exit(-1);
+            }
             f->eax=create((const char*)arg[0],(unsigned)arg[1]);
             break;
         } case SYS_REMOVE: {
@@ -79,6 +84,10 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
             break;
         } case SYS_OPEN: {
             is_valid_ptr((const void *) arg[0]);
+            const void* buf = pagedir_get_page(thread_current()->pagedir, (const void *)arg[0]);
+            if (buf == NULL) {
+                exit(-1);
+            }
 		    f->eax = open((const char*)arg[0]);
             break;
         } case SYS_FILESIZE: {
@@ -120,6 +129,9 @@ void is_valid_ptr(const void *ptr) {
     }
     if (!is_user_vaddr(ptr)) {
         exit(-1); 
+    }
+    if (ptr < 0x08048000) {
+        exit(-1);
     }
 }
 
@@ -236,10 +248,10 @@ bool create(const char* fileName, unsigned initial_size){
 false otherwise. Creating a new file does not open it: opening the new file is
 a separate operation which would require a open system call.*/
     if(fileName){
-    return filesys_create(fileName, initial_size);
+        return filesys_create(fileName, initial_size);
     }else{
-    exit(-1);
-    return 0;
+        exit(-1);
+        return -1;
     }
 }
 bool remove(const char* file){
