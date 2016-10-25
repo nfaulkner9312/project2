@@ -11,12 +11,12 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
-#include "threads/malloc.h" 
+#include "threads/malloc.h"
+#include "vm/frame.h" 
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "filesys/file.h"
 #endif
-
 /* Random value for struct thread's `magic' member.
    Used to detect stack overflow.  See the big comment at the top
    of thread.h for details. */
@@ -86,20 +86,21 @@ static tid_t allocate_tid (void);
 
    It is not safe to call thread_current() until this function
    finishes. */
-void
-thread_init (void) 
-{
-  ASSERT (intr_get_level () == INTR_OFF);
+void thread_init (void) {
+    ASSERT (intr_get_level () == INTR_OFF);
 
-  lock_init (&tid_lock);
-  list_init (&ready_list);
-  list_init (&all_list);
+    lock_init (&tid_lock);
+    list_init (&ready_list);
+    list_init (&all_list);
 
-  /* Set up a thread structure for the running thread. */
-  initial_thread = running_thread ();
-  init_thread (initial_thread, "main", PRI_DEFAULT);
-  initial_thread->status = THREAD_RUNNING;
-  initial_thread->tid = allocate_tid ();
+    /* initialize the frame table */
+    init_frame_table();
+
+    /* Set up a thread structure for the running thread. */
+    initial_thread = running_thread ();
+    init_thread (initial_thread, "main", PRI_DEFAULT);
+    initial_thread->status = THREAD_RUNNING;
+    initial_thread->tid = allocate_tid ();
 }
 
 /* Starts preemptive thread scheduling by enabling interrupts.
@@ -487,8 +488,7 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
   t->magic = THREAD_MAGIC;
-    t->fd_count=2;/*accounting for STDIN and STDOUT*/
-  list_init(&(t->childList));
+  t->fd_count=2;/*accounting for STDIN and STDOUT*/
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
@@ -500,6 +500,7 @@ init_thread (struct thread *t, const char *name, int priority)
 
   /* initialize child list */
   list_init(&t->child_list);
+
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

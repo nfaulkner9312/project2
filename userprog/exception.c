@@ -7,6 +7,8 @@
 #include "threads/thread.h"
 #include "userprog/pagedir.h"
 #include "threads/vaddr.h"
+#include "vm/frame.h"
+#include "vm/page.h"
 
 /* Number of page faults processed. */
 static long long page_fault_cnt;
@@ -142,7 +144,8 @@ page_fault (struct intr_frame *f)
      [IA32-v3a] 5.15 "Interrupt 14--Page Fault Exception
      (#PF)". */
   asm ("movl %%cr2, %0" : "=r" (fault_addr));
-
+  /* commented out for project 3 */
+/*
   if (fault_addr == NULL) {
       f->eax = -1;
       exit(-1);
@@ -159,6 +162,7 @@ page_fault (struct intr_frame *f)
         f->eax=-1;
         exit(-1);
     }
+    */
   /* Turn interrupts back on (they were only off so that we could
      be assured of reading CR2 before it changed). */
   intr_enable ();
@@ -166,10 +170,31 @@ page_fault (struct intr_frame *f)
   /* Count page faults. */
   page_fault_cnt++;
 
+  
+
   /* Determine cause. */
   not_present = (f->error_code & PF_P) == 0;
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
+
+    /* added for project 3 */
+bool load = false;
+  if (not_present && fault_addr > 0x08048000 &&
+      is_user_vaddr(fault_addr))
+    {
+      struct s_page_table_entry *spte = user_va2spte(fault_addr);
+      if (spte)
+	{
+	  load = load_page(spte);
+	}
+      else if (fault_addr >= f->esp - 32)
+	{
+	  //load = grow_stack(fault_addr);
+	}
+    }
+  if (!load)
+    {
+
 
   /* To implement virtual memory, delete the rest of the function
      body, and replace it with code that brings in the page to
@@ -180,5 +205,6 @@ page_fault (struct intr_frame *f)
           write ? "writing" : "reading",
           user ? "user" : "kernel");
   kill (f);
+    }
 }
 

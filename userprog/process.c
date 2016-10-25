@@ -19,6 +19,7 @@
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 #include "threads/synch.h"
+#include "vm/page.h"
 
 #define DEFAULT_NUMARGS 4 
 #define DELIMITER " "
@@ -34,7 +35,7 @@ process_execute (const char *file_name) {
   char *fn_copy;
   tid_t tid;
 
-  /* Make a copy of FILE_NAME.
+  /* Make a copy of FILE_NAME#include "filesys/file.h".
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
   if (fn_copy == NULL)
@@ -60,6 +61,13 @@ static void start_process (void *file_name_) {
     struct intr_frame if_;
     bool success;
 
+
+    /* create a page table for the current thread */
+    /* project 3 added */
+    struct thread* cur = thread_current();
+    list_init(&cur->spt_list);
+
+
     /* Initialize interrupt frame and load executable. */
     memset (&if_, 0, sizeof if_);
     if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
@@ -67,7 +75,6 @@ static void start_process (void *file_name_) {
     if_.eflags = FLAG_IF | FLAG_MBS;
     success = load (file_name, &if_.eip, &if_.esp);
 
-    struct thread* cur = thread_current();
     /* if load didn't succeed set the load_status to -1 then exit thread */
     if (!success){
         cur->c->load_status = -1; 
@@ -142,6 +149,9 @@ void process_exit (void) {
   /* 1) close files opened by process */
   /* 2) free the child_list */
   /* 3) set exit status */
+    /* project 3 added */
+    /* do some freeing of resources (probably need to free the page table)*/
+    /* list_remove(&cur->spt_list); (maybe)
 
 /*   struct list_elem* e;
     struct filehandle* fh;
@@ -154,9 +164,8 @@ void process_exit (void) {
 */
 
     if(cur->myself != NULL){
-    file_close(cur->myself);
+        file_close(cur->myself);
     }
-/*#####*/
 
 
   cur->c->exiting = true;
@@ -391,7 +400,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
 /* load() helpers. */
 
-static bool install_page (void *upage, void *kpage, bool writable);
+//static bool install_page (void *upage, void *kpage, bool writable);
 
 /* Checks whether PHDR describes a valid, loadable segment in
    FILE and returns true if so, false otherwise. */
@@ -452,54 +461,82 @@ validate_segment (const struct Elf32_Phdr *phdr, struct file *file)
 
    Return true if successful, false if a memory allocation error
    or disk read error occurs. */
-static bool
-load_segment (struct file *file, off_t ofs, uint8_t *upage,
-              uint32_t read_bytes, uint32_t zero_bytes, bool writable) 
-{
-  ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
-  ASSERT (pg_ofs (upage) == 0);
-  ASSERT (ofs % PGSIZE == 0);
+static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
+              uint32_t read_bytes, uint32_t zero_bytes, bool writable) {
 
-  file_seek (file, ofs);
-  while (read_bytes > 0 || zero_bytes > 0) 
-    {
-      /* Calculate how to fill this page.
+    ASSERT ((read_bytes + zero_bytes) % PGSIZE == 0);
+    ASSERT (pg_ofs (upage) == 0);
+    ASSERT (ofs % PGSIZE == 0);
+
+    file_seek (file, ofs);
+    while (read_bytes > 0 || zero_bytes > 0) { 
+        
+        /* Calculate how to fill this page.
          We will read PAGE_READ_BYTES bytes from FILE
          and zero the final PAGE_ZERO_BYTES bytes. */
-      size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
-      size_t page_zero_bytes = PGSIZE - page_read_bytes;
+        size_t page_read_bytes = read_bytes < PGSIZE ? read_bytes : PGSIZE;
+        size_t page_zero_bytes = PGSIZE - page_read_bytes;
 
-      /* Get a page of memory. */
-      uint8_t *kpage = palloc_get_page (PAL_USER);
-      if (kpage == NULL)
-        return false;
 
-      /* Load this page. */
-      if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
+        /* add file to page table */
+        /* project 3 added */
+        struct s_page_table_entry *spte = malloc(sizeof(struct s_page_table_entry));
+        /* set all the fields 
+           for the spte */
+        spte->user_va = upage;
+        spte->read_bytes = page_read_bytes;
+        spte->zero_bytes = page_zero_bytes;
+        spte->offset = ofs;
+        spte->file = file;
+        spte->is_resident = false;
+        spte->is_swap = false;
+        spte->is_mmap = false;
+        spte->writable = writable;
+
+        list_push_back(&thread_current()->spt_list, &spte->elem);
+        
+        /*
+        bool success = load_from_file(spte);
+        if (!success) {
+            return success;
+        }
+        */
+        /*
+        // Get a page of memory. 
+        uint8_t *kpage = palloc_get_page (PAL_USER);
+        if (kpage == NULL)
+            return false;
+
+        // Load this page. 
+        if (file_read (file, kpage, page_read_bytes) != (int) page_read_bytes)
         {
           palloc_free_page (kpage);
           return false; 
         }
-      memset (kpage + page_read_bytes, 0, page_zero_bytes);
+        memset (kpage + page_read_bytes, 0, page_zero_bytes);
 
-      /* Add the page to the process's address space. */
-      if (!install_page (upage, kpage, writable)) 
+        // Add the page to the process's address space. 
+        if (!install_page (upage, kpage, writable)) 
         {
           palloc_free_page (kpage);
           return false; 
         }
-
-      /* Advance. */
-      read_bytes -= page_read_bytes;
-      zero_bytes -= page_zero_bytes;
-      upage += PGSIZE;
+        */
+        /* Increment/Decrement */
+        read_bytes -= page_read_bytes;
+        zero_bytes -= page_zero_bytes;
+        upage += PGSIZE;
     }
-  return true;
+    return true;
 }
 
 /* Create a minimal stack by mapping a zeroed page at the top of
    user virtual memory. */
 static bool setup_stack (void **esp, const char* file_name) {
+
+    /* project 3 added */
+    /* need to grow the stack here so that the initial first page is allocated */
+    /* this replacing the code below */
     uint8_t *kpage;
     bool success = false;
 
@@ -581,7 +618,7 @@ static bool setup_stack (void **esp, const char* file_name) {
    with palloc_get_page().
    Returns true on success, false if UPAGE is already mapped or
    if memory allocation fails. */
-static bool
+bool
 install_page (void *upage, void *kpage, bool writable)
 {
   struct thread *t = thread_current ();

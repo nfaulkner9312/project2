@@ -99,7 +99,6 @@ struct filehandle {
 struct thread
   {
     /* Owned by thread.c. */
-    struct list childList;
     struct file* myself;
     tid_t tid;                          /* Thread identifier. */
     enum thread_status status;          /* Thread state. */
@@ -120,6 +119,8 @@ struct thread
 
     struct list child_list;
     struct list fd_list;
+    /* project 3 added */
+    struct list spt_list;
 
     struct child* c;
     /* Owned by thread.c. */
