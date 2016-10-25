@@ -100,6 +100,7 @@ struct thread
   {
     /* Owned by thread.c. */
     struct list childList;
+    struct list SPTEList;
     struct file* myself;
     tid_t tid;                          /* Thread identifier. */
     enum thread_status status;          /* Thread state. */

@@ -15,6 +15,7 @@
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "filesys/file.h"
+#include "vm/page.h"
 #endif
 
 /* Random value for struct thread's `magic' member.
@@ -497,7 +498,8 @@ init_thread (struct thread *t, const char *name, int priority)
     t->myself=filesys_open(name);*/
   /* initialize file list*/ 
   list_init(&t->fd_list);
-
+  /* initialize supplemental page table for thread */
+  list_init(&(t->SPTEList));
   /* initialize child list */
   list_init(&t->child_list);
 }
