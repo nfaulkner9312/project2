@@ -395,6 +395,8 @@ void close(int fd){
     }
     
 	file_close(fh->fp);
+    list_remove(e);
+    free(fh);
 }
 
 

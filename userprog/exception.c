@@ -2,8 +2,10 @@
 #include <inttypes.h>
 #include <stdio.h>
 #include "userprog/gdt.h"
+#include "userprog/syscall.h"
 #include "threads/interrupt.h"
 #include "threads/thread.h"
+#include "userprog/pagedir.h"
 #include "threads/vaddr.h"
 
 /* Number of page faults processed. */
@@ -153,6 +155,10 @@ page_fault (struct intr_frame *f)
       f->eax = -1;
       exit(-1);
   }
+    if(!pagedir_get_page(thread_current()->pagedir, fault_addr)){
+        f->eax=-1;
+        exit(-1);
+    }
   /* Turn interrupts back on (they were only off so that we could
      be assured of reading CR2 before it changed). */
   intr_enable ();
