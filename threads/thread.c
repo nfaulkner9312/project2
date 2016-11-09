@@ -502,6 +502,9 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&t->fd_list);
   /* initialize child list */
   list_init(&t->child_list);
+  /* initialize mmap list */
+  list_init(&t->mmap_list);
+  t->mmap_index = 0;
 
 }
 

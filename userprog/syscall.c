@@ -9,10 +9,16 @@
 #include "filesys/file.h"
 #include "filesys/filesys.h"
 #include "threads/malloc.h"
+#include "threads/palloc.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
 #include "userprog/pagedir.h"
 #include "userprog/process.h"
+#include "vm/page.h"
+#include "vm/frame.h"
+
+
+void free_the_frame(void *frame);
 
 struct lock write_lock;
 static void syscall_handler (struct intr_frame *);
@@ -42,9 +48,8 @@ void syscall_init (void) {
 }
 
 static void syscall_handler (struct intr_frame *f UNUSED) {
-  
+ 
     int arg[3];
-    
     /* TODO check if stack pointer is out of bounds */
     is_valid_ptr(f->esp); 
 
@@ -118,10 +123,18 @@ static void syscall_handler (struct intr_frame *f UNUSED) {
         } case SYS_CLOSE: {
             close((int)arg[0]);
             break;
+        } case SYS_MMAP: {
+            is_valid_ptr((const void *) arg[1]);
+            f->eax = mmap(arg[0], (void*)arg[1]);
+            break;
+        } case SYS_MUNMAP: {
+            munmap(arg[0]);
+            break;
         }
-	
     }
 }
+
+
 
 void is_valid_ptr(const void *ptr) {
     if (ptr == NULL) {
@@ -397,6 +410,100 @@ void close(int fd){
 	file_close(fh->fp);
     list_remove(e);
     free(fh);
+}
+
+int mmap(int fd, void *addr) {
+    struct thread* cur=thread_current();
+    struct list_elem* e;
+    struct filehandle* fh;
+    
+    bool hasFH=false;
+    for(e=list_begin(&cur->fd_list); e!= list_end(&cur->fd_list); e=list_next(e))
+    {
+        fh=list_entry(e,struct filehandle, elem);
+        if(fh->fd==fd){
+            hasFH=true;
+            break;
+        }
+    }
+    if(!hasFH){
+        return -1;
+    }
+
+    struct file *file = file_reopen(fh->fp);
+    if (!file || (file_length(fh->fp) == 0)) {
+        return -1;
+    }
+
+    
+    uint32_t length = file_length(file);
+    int32_t offset = 0;
+    cur->mmap_index++;
+    while (length > 0) {
+        uint32_t page_read_bytes = length; 
+        if (length > PGSIZE) {
+            page_read_bytes = PGSIZE;
+        }
+        uint32_t page_zero_bytes = PGSIZE - page_read_bytes;
+
+
+        /* add to supplemental page table */
+        struct s_page_table_entry *spte = malloc(sizeof(struct s_page_table_entry));
+        /* set all fields for the supplemental page table entry */
+        spte->file = file;
+        spte->offset = offset;
+        spte->read_bytes = page_read_bytes;
+        spte->zero_bytes = page_zero_bytes;
+        spte->is_swap = false;
+        spte->writable = true;
+        spte->is_mmap = true;
+        spte->user_va = addr;
+
+        list_push_back(&cur->spt_list, &spte->elem);
+
+        /* add to current threads mmap_list */
+        struct mmap *m = malloc(sizeof(struct mmap));
+        m->spte = spte;
+        m->mmap_index = cur->mmap_index;
+        list_push_back(&cur->mmap_list, &m->elem);
+    
+        length -= page_read_bytes;
+        offset += page_read_bytes;
+        addr += PGSIZE;
+    }
+
+    return cur->mmap_index;
+}
+void free_the_frame(void *frame) {
+    struct list_elem* e;
+    for(e=list_begin(&frame_table); e!= list_end(&frame_table); e=list_next(e)) {
+        struct frame_table_entry *fte = list_entry(e, struct frame_table_entry, elem);
+        if (fte->frame == frame) {
+            list_remove(e);
+            free(fte);
+            palloc_free_page(frame);
+            break;
+        }
+    }
+}
+void munmap(int mmap_index) {
+    struct thread *cur = thread_current();
+    struct list_elem* e;
+    struct mmap *m; 
+    
+    for(e=list_begin(&cur->mmap_list); e!= list_end(&cur->mmap_list); e=list_next(e)) {
+        m = list_entry(e,struct mmap, elem);
+        if(m->mmap_index == mmap_index){
+            if(m->spte->is_resident) {
+                free_the_frame(pagedir_get_page(cur->pagedir, m->spte->user_va));
+                pagedir_clear_page(cur->pagedir, m->spte->user_va);
+            }
+            list_remove(&m->elem);
+            free(m->spte);
+            free(m);
+            break;
+        }
+    }
 }
 
 

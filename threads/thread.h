@@ -4,6 +4,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include "vm/page.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -96,6 +97,12 @@ struct filehandle {
     struct file* fp;/*file pointer*/
 };
 
+struct mmap {
+    struct s_page_table_entry *spte;
+    int mmap_index;
+    struct list_elem elem;
+};
+
 struct thread
   {
     /* Owned by thread.c. */
@@ -121,6 +128,8 @@ struct thread
     struct list fd_list;
     /* project 3 added */
     struct list spt_list;
+    struct list mmap_list;
+    int mmap_index;
 
     struct child* c;
     /* Owned by thread.c. */

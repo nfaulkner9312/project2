@@ -5,6 +5,7 @@
 #include "userprog/process.h"
 #include "vm/frame.h"
 #include <string.h>
+#include "threads/vaddr.h"
 
 bool load_page(struct s_page_table_entry *spte) {
     if (spte->is_swap) {
@@ -35,6 +36,7 @@ bool load_from_file(struct s_page_table_entry *spte) {
         free_frame(frame);
         return false;
     }
+    spte->is_resident = true;
 
     return true;
 }
@@ -44,6 +46,28 @@ bool load_from_swap(struct s_page_table_entry *spte) {
 }
 
 bool grow_stack(void *user_va) {
+    struct s_page_table_entry *spte = malloc(sizeof(struct s_page_table_entry));
+    
+    // set fields of page table entry
+    spte->user_va = pg_round_down(user_va);
+    spte->writable = true;
+    spte->is_swap = true;
+    spte->is_mmap = false;
+    
+    /* Get a age of memory */
+    uint8_t *frame = frame_allocate(spte);
+    
+    /* Add the page to the process's address space. */
+    if (!install_page(spte->user_va, frame, spte->writable)) {
+        free(spte);
+        free_frame(frame);
+        return false;
+    }
+    spte->is_resident = true;
+
+    /* add to list */
+    list_push_back(&thread_current()->spt_list, &spte->elem);
+
     return true;
 }
 
