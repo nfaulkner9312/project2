@@ -13,6 +13,7 @@
 #include "threads/vaddr.h"
 #include "threads/malloc.h"
 #include "vm/frame.h" 
+#include "vm/swap.h"
 #ifdef USERPROG
 #include "userprog/process.h"
 #include "filesys/file.h"
@@ -96,6 +97,7 @@ void thread_init (void) {
 
     /* initialize the frame table */
     init_frame_table();
+    init_swap_table();
 
     /* Set up a thread structure for the running thread. */
     initial_thread = running_thread ();

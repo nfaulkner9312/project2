@@ -152,7 +152,7 @@ void process_exit (void) {
     /* project 3 added */
     /* do some freeing of resources (probably need to free the page table)*/
     /* list_remove(&cur->spt_list); (maybe)
-
+*/
 /*   struct list_elem* e;
     struct filehandle* fh;
     for(e=list_begin(&cur->fd_list); e!= list_end(&cur->fd_list); e=list_next(e))

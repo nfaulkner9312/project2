@@ -11,9 +11,11 @@ struct s_page_table_entry {
     bool is_swap;
     bool is_mmap;
     bool writable;
-    bool is_resident;
+    bool is_resident; /*in frame*/
      
+    /*when the spte is in a frame, is_resident == true */
     void *user_va;
+    struct frame_table_entry* my_fte;
 
     /* when the spte is a file */
     struct file *file;
@@ -22,6 +24,7 @@ struct s_page_table_entry {
     size_t zero_bytes;
 
     /* when the spte is in the swap */
+    struct swap_slot* ss;
     /* index or pointer? (probably depends on how the swap file is done) */
 
     struct list_elem elem;

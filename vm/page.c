@@ -4,6 +4,7 @@
 #include "vm/page.h"
 #include "userprog/process.h"
 #include "vm/frame.h"
+#include <string.h>
 
 bool load_page(struct s_page_table_entry *spte) {
     if (spte->is_swap) {
@@ -17,14 +18,14 @@ bool load_from_file(struct s_page_table_entry *spte) {
 
     /* Get a page of memory */
     uint8_t *frame = frame_allocate(spte);
-    /* if frame_allocate return NULL return false */
+    /* if frame_allocate return NULL return false  ###should not happen###*/
     if (!frame) {
         return false;
     }
     
     /* Load this page */
     if (file_read_at(spte->file, frame, spte->read_bytes, spte->offset) != (int) spte->read_bytes) {
-        free_frame(frame);
+        free_frame(spte->my_fte);
         return false;
     }
     memset(frame + spte->read_bytes, 0, spte->zero_bytes);

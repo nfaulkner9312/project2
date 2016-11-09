@@ -15,6 +15,8 @@ struct frame_table_entry {
 
 void init_frame_table(void);
 void *frame_allocate(struct s_page_table_entry *spte);
-void free_frame(void *frame);
+void free_frame(struct frame_table_entry*);
+void* evict_frame(void);
+struct frame_table_entry* get_frame_to_evict(void);
 
 #endif
