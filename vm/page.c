@@ -2,8 +2,10 @@
 /* page.c */
 
 #include "vm/page.h"
+#include "vm/swap.h"
 #include "userprog/process.h"
 #include "vm/frame.h"
+#include "threads/malloc.h"
 #include <string.h>
 #include "threads/vaddr.h"
 
@@ -42,6 +44,9 @@ bool load_from_file(struct s_page_table_entry *spte) {
 }
 
 bool load_from_swap(struct s_page_table_entry *spte) {
+    uint8_t *frame=frame_allocate(spte);
+    remove_from_swap(spte->my_fte,spte);
+    
     return true;
 }
 
