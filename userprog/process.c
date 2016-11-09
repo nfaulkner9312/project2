@@ -278,9 +278,8 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
    Stores the executable's entry point into *EIP
    and its initial stack pointer into *ESP.
    Returns true if successful, false otherwise. */
-bool
-load (const char *file_name, void (**eip) (void), void **esp) 
-{
+bool load (const char *file_name, void (**eip) (void), void **esp) {
+
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
@@ -537,7 +536,17 @@ static bool setup_stack (void **esp, const char* file_name) {
     /* project 3 added */
     /* need to grow the stack here so that the initial first page is allocated */
     /* this replacing the code below */
-    uint8_t *kpage;
+
+    printf("hey ho, lets go\n");
+
+    bool success = grow_stack(((uint8_t *) PHYS_BASE) - PGSIZE);
+    if (success) {
+        *esp = PHYS_BASE;
+    } else {
+        return false;
+    }
+
+    /*uint8_t *kpage;
     bool success = false;
 
     kpage = palloc_get_page (PAL_USER | PAL_ZERO);
@@ -549,6 +558,7 @@ static bool setup_stack (void **esp, const char* file_name) {
             palloc_free_page (kpage);
         }
     }
+    */
     //printf("setting up the stack with filename = %s\n", file_name);
     
     char **args = malloc(DEFAULT_NUMARGS*sizeof(char*));

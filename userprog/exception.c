@@ -178,33 +178,25 @@ page_fault (struct intr_frame *f)
   user = (f->error_code & PF_U) != 0;
 
     /* added for project 3 */
-bool load = false;
-  if (not_present && fault_addr > 0x08048000 &&
-      is_user_vaddr(fault_addr))
-    {
-      struct s_page_table_entry *spte = user_va2spte(fault_addr);
-      if (spte)
-	{
-	  load = load_page(spte);
-	}
-      else if (fault_addr >= f->esp - 32)
-	{
-	  //load = grow_stack(fault_addr);
-	}
+    bool success = false;
+    if (not_present && fault_addr > 0x08048000 && is_user_vaddr(fault_addr)) {
+        struct s_page_table_entry *spte = user_va2spte(fault_addr);
+        if (spte) {
+	        success = load_page(spte);
+	    } else if (fault_addr >= f->esp - 32) {
+	        //load = grow_stack(fault_addr);
+	    }
     }
-  if (!load)
-    {
-
-
-  /* To implement virtual memory, delete the rest of the function
-     body, and replace it with code that brings in the page to
-     which fault_addr refers. */
-  printf ("Page fault at %p: %s error %s page in %s context.\n",
-          fault_addr,
-          not_present ? "not present" : "rights violation",
-          write ? "writing" : "reading",
-          user ? "user" : "kernel");
-  kill (f);
+    if (!success) {
+        /* To implement virtual memory, delete the rest of the function
+         body, and replace it with code that brings in the page to
+         which fault_addr refers. */
+        printf ("Page fault at %p: %s error %s page in %s context.\n",
+              fault_addr,
+              not_present ? "not present" : "rights violation",
+              write ? "writing" : "reading",
+              user ? "user" : "kernel");
+        kill (f);
     }
 }
 
